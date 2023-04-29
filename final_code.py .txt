@@ -1,0 +1,135 @@
+import argparse
+from socket import *
+from threading import *
+from scapy.all import *
+print("Welcome to the port scanner: \n")
+print("The program can scan for the given host using the techniques given below :\ n");
+print("1>CONNECT scan \n2>XMAS scan \n3>STEALTH scan")
+choice=input("Please enter your choice:\n")
+if choice == 'CONNECT':
+ScreenLock = Semaphore(value=1)
+def connScan(tgtHost, tgtPort):
+with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as connSoc:
+try:
+connSoc.connect((tgtHost,tgtPort))
+connSoc.send(bytes('KnockKnock\r\n', 'UTF-8'))
+results = connSoc.recv(100)
+ScreenLock.acquire()
+print("[+]",tgtPort,"open")
+print("    [RESP]", str(results))
+connSoc.close()
+except:
+ScreenLock.acquire()
+print("[-]",tgtPort,"closed")
+finally:
+ScreenLock.release()
+connSoc.close()
+def portScan(tgtHost, tgtPorts):
+try:
+tgtIP = gethostbyname(tgtHost)
+except:
+print("[-] Cannot resolve", tgtHost,": Unknown host")
+return
+try:
+tgtName = gethostbyaddr(tgtIP)
+print('\n[+] Scan Results for:', tgtName[0])
+except:
+print('\n[+] Scan Results for:', tgtIP)
+setdefaulttimeout(1)
+for tgtPort in tgtPorts:
+t = Thread(target=connScan, args=(tgtHost, int(tgtPort)))
+t.start()
+def main():
+   # Arg Parsing
+host=input("Please enter the host \n")
+port=input("Please enter all the ports that you want to check for: \n")
+tgtHost =host
+tgtPorts = str(port).split(',')
+   # Check args present and set variables
+if (tgtHost == None) | (tgtPorts[0] == None):
+parser.print_help()
+exit(0)
+portScan(tgtHost, tgtPorts)
+if __name__ == '__main__':
+main()
+exit(0)
+
+elif choice=='XMAS':
+host=input("please enter the host to scanned for")
+ip = socket.gethostbyname(host)
+openp = []
+filterdp = []
+common_ports = {16,21, 22, 23, 25, 53, 69, 80, 88, 109, 110,3456,2086,2087,2082, 2083, 3306, 8443, 10000 }
+def is_up(ip):
+icmp = IP(dst=ip)/ICMP()
+resp = sr1(icmp, timeout=10)
+if resp == None:
+return False
+else:
+return True
+
+def probe_port(ip, port, result = 1):
+src_port = RandShort()
+try:
+p = IP(dst=ip)/TCP(sport=src_port, dport=port, flags='FPU')
+resp = sr1(p, timeout=2) # Sending packet
+if str(type(resp)) == "<type 'NoneType'>":
+result = 1
+elif resp.haslayer(TCP):
+if resp.getlayer(TCP).flags == 0x14:
+result = 0
+elif (int(resp.getlayer(ICMP).type)==3 and int(resp.getlayer(ICMP).code) in [1,2,3,9,10,13]):
+result = 2
+except Exception as e:
+pass
+return result
+
+
+if __name__ == '__main__':
+conf.verb = 0 
+if is_up(ip):
+for port in common_ports:
+print (port)
+response = probe_port(ip, port)
+if response == 1:
+openp.append(port)
+elif response == 2:
+filterdp.append(port)
+
+if len(openp) != 0:
+print ("Possible Open or Filtered Ports:")
+print (openp)
+if len(filterdp) != 0:
+print ("Possible Filtered Ports:")
+print (filterdp)
+if (len(openp) == 0) and (len(filterdp) == 0):
+print ("Sorry, No open ports found.!!")
+else:
+print ("Host is Down")
+elif choice =='STEALTH':
+ip = input("Enter the ip address or url:\n")
+port = (input("Enter the port numbers:\n"))
+tupports=str(port).split(',')
+def checkhost():
+ping = IP(dst=ip)/ICMP()
+res = sr1(ping,timeout=1,verbose=0)
+if res == None:
+print("This host is down")
+else:
+print("This host is up")
+
+#function to check open port
+def checkport():
+for port_s in tupports:
+iport=int(port_s)
+tcpRequest = IP(dst=ip)/TCP(dport=iport,flags="S")
+tcpResponse = sr1(tcpRequest,timeout=1,verbose=0)
+try:
+if tcpResponse.getlayer(TCP).flags == "SA":
+print(iport,"is listening")
+except AttributeError:
+print(iport,"is not listening")
+
+checkhost()
+checkport()
+
